@@ -4,16 +4,16 @@ import {
   getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, 
   onAuthStateChanged, signOut 
 } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { 
   User, MapPin, Church, BookOpen, Users, Briefcase, FileText, 
   Printer, Plus, Minus, ChevronRight, ChevronLeft, 
   Calendar, Building2, Heart, Coins, ShieldCheck,
   Star, Smartphone, LogOut, Lock, Mail, Eye, EyeOff, 
-  AlertCircle, Loader2, Wine, Waves, ScrollText, Clock, FileDown
+  AlertCircle, Loader2, Wine, Waves, ScrollText, Clock, FileDown, CheckCircle2
 } from 'lucide-react';
 
-// --- CONFIGURAÇÃO FIREBASE ---
+// --- CONFIGURAÇÃO DIRETA PARA VERCEL ---
 const firebaseConfig = {
   apiKey: "AIzaSyA-Ein7ax-djeF8IXF_mXc3IfsLYN_itWU",
   authDomain: "agendaipb.firebaseapp.com",
@@ -27,18 +27,16 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const DB_ID = "relatorio-presbiteriano-v15";
+const DB_COLLECTION = "relatorio-presbiteriano-v16";
 
-// --- ESTADO INICIAL COMPLETO (BASEADO NO RELATÓRIO 17H51) ---
 const INITIAL_STATE = {
-  header: { ano: '2025', sinodo: '', presbiterio: '', siglaSinodo: '', siglaPresbiterio: '' },
+  header: { ano: '2025', sinodo: '', presbiterio: '' },
   identificacao: {
-    nome: '', filiacaoPai: '', filiacaoMae: '', dataNascimento: '', localNascimento: '', ufNascimento: '',
+    nome: '', filiacao: '', dataNascimento: '', localNascimento: '', ufNascimento: '',
     rg: '', orgaoEmissor: '', cpf: '', estadoCivil: 'Casado', conjuge: '', niverConjuge: '',
-    dependentes: '0', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '', cep: '',
-    telefoneResidencia: '', celular: '', telefoneIgreja: '', email: '',
-    moradia: 'pastoral', // pastoral, aluguel_igreja, aluguel_ministro, propria_quitada, propria_financiada
-    localizacaoMoradia: 'dentro', // dentro, fora
+    dependentes: '0', endereco: '', bairro: '', cidade: '', uf: '', cep: '', numero: '',
+    complemento: '', telefone: '', celular: '', email: '', igreja: '',
+    moradia: 'pastoral', localizacaoMoradia: 'dentro', 
     dataOrdenacao: '', dedicacao: 'integral', ferias: 'regulares', 
     congruas: '', aposentadoriaPublica: false, aposentadoriaPrivada: false,
     planoSaude: false, inssSobreCongrua: false, valorInss: '', previdenciaPrivada: false
@@ -48,11 +46,11 @@ const INITIAL_STATE = {
     doutrinacao: [
       { id: 'pregacao', label: '📖 Pregações', noCampo: 0, foraCampo: 0 },
       { id: 'ed', label: '🏫 Aulas de Escola Dominical', noCampo: 0, foraCampo: 0 },
-      { id: 'evangelizacao', label: '📢 Trabalhos de Evangelização', noCampo: 0, foraCampo: 0 },
+      { id: 'evangelizacao', label: '📢 Evangelização', noCampo: 0, foraCampo: 0 },
       { id: 'estudo', label: '🔍 Estudo Bíblico', noCampo: 0, foraCampo: 0 },
       { id: 'palestras', label: '🎤 Palestras', noCampo: 0, foraCampo: 0 },
       { id: 'prelecoes', label: '🎖️ Preleções Especiais', noCampo: 0, foraCampo: 0 },
-      { id: 'media', label: '📺 Mensagens Rádio/TV', noCampo: 0, foraCampo: 0 },
+      { id: 'media', label: '📺 Rádio/TV', noCampo: 0, foraCampo: 0 },
       { id: 'artigos', label: '✍️ Artigos (Jornais/Revistas)', noCampo: 0, foraCampo: 0 },
       { id: 'entrevistas', label: '🎙️ Entrevistas', noCampo: 0, foraCampo: 0 },
     ],
@@ -62,7 +60,7 @@ const INITIAL_STATE = {
       { id: 'funerais', label: '🕊️ Funerais', noCampo: 0, foraCampo: 0 },
       { id: 'batismos_infantis', label: '👶 Batismos Infantis', noCampo: 0, foraCampo: 0 },
       { id: 'profissoes', label: '🤝 Profissões de Fé', noCampo: 0, foraCampo: 0 },
-      { id: 'profissao_batismo', label: '🌊 Profissões de Fé e Batismo', noCampo: 0, foraCampo: 0 },
+      { id: 'profissao_batismo', label: '🌊 Profissão e Batismo', noCampo: 0, foraCampo: 0 },
     ],
     assistencia: [
       { id: 'aconselhamento', label: '🗣️ Aconselhamento', noCampo: 0, foraCampo: 0 },
@@ -70,55 +68,43 @@ const INITIAL_STATE = {
       { id: 'pontos', label: '📍 Pontos de Pregação', noCampo: 0, foraCampo: 0 },
       { id: 'missoes', label: '🌍 Missões', noCampo: 0, foraCampo: 0 },
       { id: 'departamentos', label: '👥 Departamentos', noCampo: 0, foraCampo: 0 },
-    ],
-    designado: { descricao: '' }
+    ]
   },
   atuacaoConciliar: {
     concilios: [
-      { id: 'conselho', label: '🏛️ Reuniões do Conselho', noCampo: 0, foraCampo: 0 },
+      { id: 'conselho', label: '🏛️ Reuniões Conselho', noCampo: 0, foraCampo: 0 },
       { id: 'assembleias', label: '🗳️ Assembleias Gerais', noCampo: 0, foraCampo: 0 },
-      { id: 'presbiterio', label: '📐 Reuniões do Presbitério', noCampo: 0, foraCampo: 0 },
-      { id: 'sinodo', label: '🗺️ Reuniões do Sínodo', noCampo: 0, foraCampo: 0 },
-      { id: 'sc', label: '⚖️ Reuniões Supremo Concílio', noCampo: 0, foraCampo: 0 },
-      { id: 'diaconos', label: '👔 Diáconos Ordenados', noCampo: 0, foraCampo: 0 },
-      { id: 'presbiteros', label: '📜 Presbíteros Ordenados', noCampo: 0, foraCampo: 0 },
+      { id: 'presbiterio', label: '📐 Reuniões Presbitério', noCampo: 0, foraCampo: 0 },
+      { id: 'sinodo', label: '🗺️ Reuniões Sínodo', noCampo: 0, foraCampo: 0 },
+      { id: 'sc', label: '⚖️ Reuniões S. Concílio', noCampo: 0, foraCampo: 0 },
     ],
     cargos: { presbiterio: '', sinodo: '', sc: '', juntas: '', textoComplementar: '' }
   },
-  outrasAtividades: {
-    atualizacao: '', paraeclesiastica: '', extraministerial: '', outras: '',
-    local: '', dataGeracao: new Date().toLocaleDateString('pt-BR')
-  }
+  outrasAtividades: { local: '', dataGeracao: new Date().toLocaleDateString('pt-BR') }
 };
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [report, setReport] = useState(INITIAL_STATE);
-  const [tab, setTab] = useState(0); 
+  const [tab, setTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  
-  // Auth UI
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
   const [authError, setAuthError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const reportRef = useRef(null);
 
-  const reportPrintRef = useRef(null);
-
-  // Injetar script html2pdf via CDN
+  // Injetar o motor de PDF externo
   useEffect(() => {
-    if (!document.getElementById('html2pdf-cdn')) {
-      const script = document.createElement('script');
-      script.id = 'html2pdf-cdn';
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-      document.body.appendChild(script);
-    }
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+    script.async = true;
+    document.body.appendChild(script);
   }, []);
 
-  // Monitorar Autenticação
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
@@ -127,111 +113,88 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // Monitorar Firestore
   useEffect(() => {
     if (!user) return;
-    const reportRef = doc(db, 'artifacts', DB_ID, 'users', user.uid, 'data', 'relatorio');
-    const unsub = onSnapshot(reportRef, (snap) => {
-      if (snap.exists()) {
-        setReport(prev => ({ ...prev, ...snap.data() }));
-      } else {
-        setDoc(reportRef, INITIAL_STATE);
-      }
-      setLoading(false);
-    }, (err) => {
-      console.error(err);
+    const docRef = doc(db, 'artifacts', DB_COLLECTION, 'users', user.uid, 'data', 'relatorio');
+    const unsub = onSnapshot(docRef, (snap) => {
+      if (snap.exists()) setReport(prev => ({ ...prev, ...snap.data() }));
+      else setDoc(docRef, INITIAL_STATE);
       setLoading(false);
     });
     return () => unsub();
   }, [user]);
 
-  const saveToCloud = async (newData) => {
+  const save = async (data) => {
     if (!user) return;
     setIsSaving(true);
     try {
-      const reportRef = doc(db, 'artifacts', DB_ID, 'users', user.uid, 'data', 'relatorio');
-      await setDoc(reportRef, newData);
+      await setDoc(doc(db, 'artifacts', DB_COLLECTION, 'users', user.uid, 'data', 'relatorio'), data);
     } catch (e) { console.error(e); }
     finally { setIsSaving(false); }
   };
 
-  const update = (section, field, value) => {
-    const newData = { ...report, [section]: { ...report[section], [field]: value } };
-    setReport(newData);
-    saveToCloud(newData);
-  };
-
   const updateCounter = (section, listKey, id, field, delta) => {
     const list = [...report[section][listKey]];
-    const index = list.findIndex(item => item.id === id);
-    if (index !== -1) {
-      list[index][field] = Math.max(0, (list[index][field] || 0) + delta);
-    }
-    const newData = { ...report, [section]: { ...report[section], [listKey]: list } };
-    setReport(newData); // UI instantânea
-    saveToCloud(newData);
+    const idx = list.findIndex(i => i.id === id);
+    if (idx !== -1) list[idx][field] = Math.max(0, (list[idx][field] || 0) + delta);
+    const updated = { ...report, [section]: { ...report[section], [listKey]: list } };
+    setReport(updated);
+    save(updated);
+  };
+
+  const handleUpdate = (section, field, value) => {
+    const updated = { ...report, [section]: { ...report[section], [field]: value } };
+    setReport(updated);
+    save(updated);
   };
 
   const generatePDF = () => {
     if (!window.html2pdf) {
-      alert("Aguarde o carregamento do motor de PDF (1-2 segundos).");
+      alert("Carregando motor de PDF...");
       return;
     }
     setIsGenerating(true);
-    const element = reportPrintRef.current;
+    const element = reportRef.current;
     const opt = {
       margin: 10,
-      filename: `Relatorio_Ministro_${report.header.ano}.pdf`,
+      filename: `Relatorio_IPB_${report.header.ano}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
+      html2canvas: { scale: 2 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
-    
-    window.html2pdf().from(element).set(opt).save()
-      .then(() => setIsGenerating(false))
-      .catch(() => setIsGenerating(false));
+    window.html2pdf().from(element).set(opt).save().finally(() => setIsGenerating(false));
   };
 
-  const handleAuth = async (e) => {
-    e.preventDefault();
-    setAuthError('');
-    try {
-      if (isRegistering) await createUserWithEmailAndPassword(auth, email, password);
-      else await signInWithEmailAndPassword(auth, email, password);
-    } catch (err) { setAuthError("Falha na autenticação."); }
-  };
-
-  if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-indigo-600" /></div>;
+  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-indigo-600" /></div>;
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6 font-sans">
-        <div className="w-full max-w-md">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="w-full max-w-md bg-white p-8 rounded-[40px] shadow-2xl border border-slate-100">
           <div className="text-center mb-8">
-            <div className="bg-slate-900 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl">
-              <Star className="text-amber-400 fill-amber-400" size={32} />
-            </div>
-            <h1 className="text-2xl font-black text-slate-800 tracking-tight italic">Relatório Ministerial</h1>
-            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[2px]">Acesso Seguro IPB</p>
+            <Star className="text-amber-400 fill-amber-400 mx-auto mb-2" size={40} />
+            <h1 className="text-2xl font-black text-slate-800">Acesso Ministerial</h1>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Igreja Presbiteriana do Brasil</p>
           </div>
-          <div className="bg-white p-8 rounded-[32px] shadow-2xl border border-white">
-            <form onSubmit={handleAuth} className="space-y-4">
-              <InputField label="E-mail" type="email" value={email} onChange={setEmail} icon={<Mail size={18}/>} />
-              <div className="relative">
-                <InputField label="Senha" type={showPassword ? "text" : "password"} value={password} onChange={setPassword} icon={<Lock size={18}/>} />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-[38px] text-slate-300">
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-              {authError && <p className="text-red-500 text-[10px] font-bold">{authError}</p>}
-              <button className="w-full bg-slate-900 text-white py-4 rounded-xl font-black uppercase tracking-widest shadow-xl hover:bg-black transition-all">
-                {isRegistering ? 'Cadastrar' : 'Entrar'}
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            setAuthError('');
+            if (isRegistering) createUserWithEmailAndPassword(auth, email, password).catch(() => setAuthError("Erro no cadastro"));
+            else signInWithEmailAndPassword(auth, email, password).catch(() => setAuthError("E-mail ou senha incorretos"));
+          }} className="space-y-4">
+            <InputField label="E-mail" type="email" value={email} onChange={setEmail} />
+            <div className="relative">
+              <InputField label="Senha" type={showPassword ? "text" : "password"} value={password} onChange={setPassword} />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-9 text-slate-300">
+                {showPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
               </button>
-            </form>
-            <button onClick={() => setIsRegistering(!isRegistering)} className="w-full text-center mt-6 text-[10px] font-black text-indigo-500 uppercase tracking-widest">
-              {isRegistering ? 'Voltar' : 'Criar nova conta?'}
-            </button>
-          </div>
+            </div>
+            {authError && <p className="text-red-500 text-[10px] font-bold">{authError}</p>}
+            <button className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold uppercase tracking-widest">Entrar</button>
+          </form>
+          <button onClick={() => setIsRegistering(!isRegistering)} className="w-full mt-6 text-xs font-bold text-indigo-600 uppercase">
+            {isRegistering ? "Voltar ao Login" : "Primeiro Acesso? Criar conta"}
+          </button>
         </div>
       </div>
     );
@@ -239,32 +202,31 @@ export default function App() {
 
   const tabs = [
     { label: 'Agenda', icon: <Clock size={18} /> },
-    { label: 'Identificação', icon: <User size={18} /> },
+    { label: 'Identidade', icon: <User size={18} /> },
     { label: 'Atuação', icon: <Church size={18} /> },
-    { label: 'Concílios', icon: <Building2 size={18} /> },
-    { label: 'Documento', icon: <Printer size={18} /> }
+    { label: 'Relatório', icon: <Printer size={18} /> }
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24 font-sans text-slate-900 overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 pb-24 font-sans text-slate-900">
       
       {/* HEADER */}
-      <header className="bg-white border-b p-4 no-print flex justify-between items-center sticky top-0 z-50">
+      <header className="bg-white border-b p-4 flex justify-between items-center sticky top-0 z-50">
         <div className="flex items-center gap-3">
-          <div className="bg-slate-900 p-1.5 rounded-lg text-white shadow-lg"><Star size={16} fill="white" /></div>
+          <div className="bg-indigo-900 p-1.5 rounded-lg text-white shadow-lg"><Star size={16} fill="white" /></div>
           <h1 className="text-xs font-black uppercase tracking-tighter">Agenda do Ministro</h1>
         </div>
         <div className="flex items-center gap-3">
-          {isSaving && <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>}
+          {isSaving && <CheckCircle2 className="text-emerald-500" size={16} />}
           <button onClick={() => signOut(auth)} className="text-slate-300 hover:text-red-500 transition-colors"><LogOut size={18} /></button>
         </div>
       </header>
 
-      {/* NAVEGAÇÃO */}
-      <nav className="bg-white border-b flex overflow-x-auto no-print sticky top-[57px] z-40 shadow-sm scrollbar-hide">
+      {/* TABS */}
+      <nav className="bg-white border-b flex sticky top-[57px] z-40 shadow-sm">
         {tabs.map((t, i) => (
           <button key={i} onClick={() => setTab(i)}
-            className={`flex-1 flex flex-col items-center justify-center gap-1 px-4 py-3 text-[9px] font-black uppercase tracking-widest transition-all border-b-4 ${
+            className={`flex-1 flex flex-col items-center py-3 text-[9px] font-black uppercase tracking-widest transition-all border-b-4 ${
               tab === i ? 'border-indigo-600 text-indigo-600 bg-indigo-50/20' : 'border-transparent text-slate-300'
             }`}
           >
@@ -275,209 +237,119 @@ export default function App() {
 
       <main className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
         
-        {/* TAB 0: AGENDA DIÁRIA */}
+        {/* AGENDA */}
         {tab === 0 && (
-          <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="bg-indigo-900 p-8 rounded-[32px] text-white shadow-xl flex justify-between items-center relative overflow-hidden">
-               <div className="relative z-10">
-                <p className="text-indigo-400 text-[10px] font-black uppercase tracking-[3px] mb-1">Registro de Hoje</p>
-                <h2 className="text-2xl font-black">{new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</h2>
+          <div className="space-y-6 animate-in fade-in">
+            <div className="bg-slate-900 p-8 rounded-[32px] text-white shadow-xl flex justify-between items-center relative overflow-hidden">
+              <div className="relative z-10">
+                <p className="text-indigo-400 text-[10px] font-black uppercase mb-1">Registro Ministerial</p>
+                <h2 className="text-2xl font-black">{new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}</h2>
               </div>
-              <Clock size={40} className="opacity-10 absolute -right-2 -bottom-2" />
+              <Clock size={40} className="text-slate-800 absolute -right-2 -bottom-2" />
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <AgendaBlock title="📖 Doutrinação" items={report.atuacaoMinisterial.doutrinacao} onAdd={(id) => updateCounter('atuacaoMinisterial', 'doutrinacao', id, 'noCampo', 1)} />
-              <AgendaBlock title="⛪ Atos Pastorais" items={report.atuacaoMinisterial.atos} onAdd={(id) => updateCounter('atuacaoMinisterial', 'atos', id, 'noCampo', 1)} />
+              <QuickAdd title="Doutrinação" items={report.atuacaoMinisterial.doutrinacao} onAdd={(id) => updateCounter('atuacaoMinisterial', 'doutrinacao', id, 'noCampo', 1)} />
+              <QuickAdd title="Atos Pastorais" items={report.atuacaoMinisterial.atos} onAdd={(id) => updateCounter('atuacaoMinisterial', 'atos', id, 'noCampo', 1)} />
             </div>
           </div>
         )}
 
-        {/* TAB 1: IDENTIFICAÇÃO DETALHADA */}
+        {/* IDENTIFICAÇÃO DETALHADA */}
         {tab === 1 && (
-          <div className="space-y-6 animate-in fade-in duration-500 pb-10">
-            <Section title="📑 Identificação do Período" icon={<FileText size={18} />}>
+          <div className="space-y-6 animate-in fade-in">
+            <Section title="📑 Dados do Período" icon={<FileText size={18} />}>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <InputField label="Ano Civil" value={report.header.ano} onChange={v => update('header', 'ano', v)} />
-                <InputField label="Sínodo" value={report.header.sinodo} onChange={v => update('header', 'sinodo', v)} />
-                <InputField label="Presbitério" value={report.header.presbiterio} onChange={v => update('header', 'presbiterio', v)} />
+                <InputField label="Ano Civil" value={report.header.ano} onChange={v => handleUpdate('header', 'ano', v)} />
+                <InputField label="Sínodo" value={report.header.sinodo} onChange={v => handleUpdate('header', 'sinodo', v)} />
+                <InputField label="Presbitério" value={report.header.presbiterio} onChange={v => handleUpdate('header', 'presbiterio', v)} />
               </div>
             </Section>
-
-            <Section title="👤 I - Identificação do Ministro" icon={<User size={18} />}>
+            <Section title="👤 Identificação" icon={<User size={18} />}>
               <div className="space-y-4">
-                <InputField label="Nome Completo" value={report.identificacao.nome} onChange={v => update('identificacao', 'nome', v)} />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <InputField label="Filiação (Pai)" value={report.identificacao.filiacaoPai} onChange={v => update('identificacao', 'filiacaoPai', v)} />
-                  <InputField label="Filiação (Mãe)" value={report.identificacao.filiacaoMae} onChange={v => update('identificacao', 'filiacaoMae', v)} />
-                </div>
+                <InputField label="Nome Completo" value={report.identificacao.nome} onChange={v => handleUpdate('identificacao', 'nome', v)} />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <InputField label="Data Nascimento" type="date" value={report.identificacao.dataNascimento} onChange={v => update('identificacao', 'dataNascimento', v)} />
-                  <InputField label="Local (Cidade)" value={report.identificacao.localNascimento} onChange={v => update('identificacao', 'localNascimento', v)} />
-                  <InputField label="UF" value={report.identificacao.ufNascimento} onChange={v => update('identificacao', 'ufNascimento', v)} />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <InputField label="RG / Órgão" value={report.identificacao.rg} onChange={v => update('identificacao', 'rg', v)} />
-                  <InputField label="CPF" value={report.identificacao.cpf} onChange={v => update('identificacao', 'cpf', v)} />
-                  <SelectField label="Estado Civil" value={report.identificacao.estadoCivil} options={['Solteiro', 'Casado', 'Divorciado', 'Viúvo']} onChange={v => update('identificacao', 'estadoCivil', v)} />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <InputField label="Cônjuge" value={report.identificacao.conjuge} onChange={v => update('identificacao', 'conjuge', v)} />
-                  <InputField label="Aniversário Cônjuge" type="date" value={report.identificacao.niverConjuge} onChange={v => update('identificacao', 'niverConjuge', v)} />
-                  <InputField label="Nº de Dependentes" type="number" value={report.identificacao.dependentes} onChange={v => update('identificacao', 'dependentes', v)} />
+                  <InputField label="RG" value={report.identificacao.rg} onChange={v => handleUpdate('identificacao', 'rg', v)} />
+                  <InputField label="CPF" value={report.identificacao.cpf} onChange={v => handleUpdate('identificacao', 'cpf', v)} />
+                  <InputField label="Nascimento" type="date" value={report.identificacao.dataNascimento} onChange={v => handleUpdate('identificacao', 'dataNascimento', v)} />
                 </div>
               </div>
             </Section>
-
-            <Section title="🏠 Endereço e Moradia" icon={<Smartphone size={18} />}>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="md:col-span-2"><InputField label="Logradouro" value={report.identificacao.endereco} onChange={v => update('identificacao', 'endereco', v)} /></div>
-                  <InputField label="Nº / Comp." value={report.identificacao.numero} onChange={v => update('identificacao', 'numero', v)} />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <InputField label="Bairro" value={report.identificacao.bairro} onChange={v => update('identificacao', 'bairro', v)} />
-                  <InputField label="Cidade" value={report.identificacao.cidade} onChange={v => update('identificacao', 'cidade', v)} />
-                  <InputField label="CEP" value={report.identificacao.cep} onChange={v => update('identificacao', 'cep', v)} />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <InputField label="Celular" value={report.identificacao.celular} onChange={v => update('identificacao', 'celular', v)} />
-                  <InputField label="E-mail Oficial" value={report.identificacao.email} onChange={v => update('identificacao', 'email', v)} />
-                </div>
-                <hr className="my-2" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <SelectField label="Condições de Moradia" value={report.identificacao.moradia} options={{pastoral: 'Casa/Apto Pastoral', aluguel_igreja: 'Aluguel Igreja', propria_quitada: 'Própria Quitada', propria_financiada: 'Própria Financiada'}} onChange={v => update('identificacao', 'moradia', v)} />
-                  <SelectField label="Localização" value={report.identificacao.localizacaoMoradia} options={{dentro: 'Limites do Campo', fora: 'Fora do Campo'}} onChange={v => update('identificacao', 'localizacaoMoradia', v)} />
-                </div>
-              </div>
-            </Section>
-
-            <Section title="💰 Financeiro e Ministério" icon={<Coins size={18} />}>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <InputField label="Ordenação" type="date" value={report.identificacao.dataOrdenacao} onChange={v => update('identificacao', 'dataOrdenacao', v)} />
-                  <SelectField label="Dedicação" value={report.identificacao.dedicacao} options={{integral: 'Integral', parcial: 'Parcial'}} onChange={v => update('identificacao', 'dedicacao', v)} />
-                  <InputField label="Côngruas (R$)" value={report.identificacao.congruas} onChange={v => update('identificacao', 'congruas', v)} />
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                  <Checkbox label="Plano Saúde" checked={report.identificacao.planoSaude} onChange={v => update('identificacao', 'planoSaude', v)} />
-                  <Checkbox label="Aposentadoria" checked={report.identificacao.aposentadoriaPublica} onChange={v => update('identificacao', 'aposentadoriaPublica', v)} />
-                  <Checkbox label="INSS s/ Côngrua" checked={report.identificacao.inssSobreCongrua} onChange={v => update('identificacao', 'inssSobreCongrua', v)} />
-                  <InputField label="Valor INSS" value={report.identificacao.valorInss} onChange={v => update('identificacao', 'valorInss', v)} />
+            <Section title="💰 Financeiro e Moradia" icon={<Home size={18} />}>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <InputField label="Congruas (R$)" value={report.identificacao.congruas} onChange={v => handleUpdate('identificacao', 'congruas', v)} />
+                <InputField label="Valor INSS" value={report.identificacao.valorInss} onChange={v => handleUpdate('identificacao', 'valorInss', v)} />
+                <SelectField label="Condições Moradia" value={report.identificacao.moradia} options={{pastoral: 'Pastoral', aluguel: 'Aluguel', propria: 'Própria'}} onChange={v => handleUpdate('identificacao', 'moradia', v)} />
               </div>
             </Section>
           </div>
         )}
 
-        {/* TAB 2: ATUAÇÃO MINISTERIAL */}
+        {/* ATUAÇÃO */}
         {tab === 2 && (
-          <div className="space-y-8 animate-in fade-in duration-500 pb-10">
-             <Section title="🕍 II - Campo de Trabalho" icon={<Church size={18} />}>
-                <TextAreaField label="Igrejas e Congregações sob Responsabilidade" value={report.campoTrabalho.igrejas} onChange={v => update('campoTrabalho', 'igrejas', v)} />
-             </Section>
+          <div className="space-y-8 animate-in fade-in">
              <StatTable title="1. Doutrinação" icon={<BookOpen size={18} />} items={report.atuacaoMinisterial.doutrinacao} onDelta={(id, f, d) => updateCounter('atuacaoMinisterial', 'doutrinacao', id, f, d)} />
              <StatTable title="2. Atos Pastorais" icon={<Wine size={18} />} items={report.atuacaoMinisterial.atos} onDelta={(id, f, d) => updateCounter('atuacaoMinisterial', 'atos', id, f, d)} />
-             <StatTable title="3. Assistência Pastoral" icon={<Users size={18} />} items={report.atuacaoMinisterial.assistencia} onDelta={(id, f, d) => updateCounter('atuacaoMinisterial', 'assistencia', id, f, d)} />
-             <Section title="📝 4. Ministério Designado (Art 37)" icon={<ScrollText size={18} />}>
-                <TextAreaField placeholder="Descrição das atividades..." value={report.atuacaoMinisterial.designado.descricao} onChange={v => update('atuacaoMinisterial', 'designado', { descricao: v })} />
-             </Section>
           </div>
         )}
 
-        {/* TAB 3: CONCÍLIOS */}
+        {/* RELATÓRIO PDF */}
         {tab === 3 && (
-          <div className="space-y-8 animate-in fade-in duration-500 pb-10">
-             <StatTable title="IV - Atuação Conciliar" icon={<Building2 size={18} />} items={report.atuacaoConciliar.concilios} onDelta={(id, f, d) => updateCounter('atuacaoConciliar', 'concilios', id, f, d)} />
-             <Section title="💼 Cargos e Funções" icon={<Briefcase size={18} />}>
-                <TextAreaField placeholder="Mencionar cargos e reuniões..." value={report.atuacaoConciliar.cargos.textoComplementar} onChange={v => update('atuacaoConciliar', 'cargos', {...report.atuacaoConciliar.cargos, textoComplementar: v})} />
-             </Section>
-             <Section title="🌟 V. Outras Atividades" icon={<Star size={18} />}>
-                <TextAreaField label="Atualização / Aperfeiçoamento" value={report.outrasAtividades.atualizacao} onChange={v => update('outrasAtividades', 'atualizacao', v)} />
-                <TextAreaField label="Atividades Extra Ministeriais" value={report.outrasAtividades.extraministerial} onChange={v => update('outrasAtividades', 'extraministerial', v)} />
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                   <InputField label="Local" value={report.outrasAtividades.local} onChange={v => update('outrasAtividades', 'local', v)} />
-                   <InputField label="Data do Relatório" type="date" value={report.outrasAtividades.dataGeracao} onChange={v => update('outrasAtividades', 'dataGeracao', v)} />
-                </div>
-             </Section>
-          </div>
-        )}
-
-        {/* TAB 4: RELATÓRIO PDF (VISUALIZAÇÃO COMPLETA) */}
-        {tab === 4 && (
           <div className="space-y-6 animate-in zoom-in-95 duration-500">
-            <div className="bg-slate-900 text-white p-8 rounded-[40px] flex justify-between items-center no-print shadow-2xl">
-              <div>
-                <h3 className="font-black text-xl italic tracking-tighter uppercase">Documento Oficial</h3>
-                <p className="text-xs text-slate-400">Gere o PDF para apresentar aos concílios.</p>
-              </div>
+            <div className="bg-indigo-950 text-white p-10 rounded-[40px] text-center shadow-2xl relative overflow-hidden">
+              <Printer size={48} className="mx-auto mb-6 text-amber-400" />
+              <h2 className="text-2xl font-black mb-4">Gerar Relatório IPB</h2>
               <button 
                 onClick={generatePDF}
                 disabled={isGenerating}
-                className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-black flex items-center gap-2 hover:scale-105 transition-all shadow-xl disabled:opacity-50"
+                className="w-full max-w-sm bg-white text-indigo-950 py-5 rounded-[24px] font-black uppercase tracking-widest shadow-xl flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
               >
-                {isGenerating ? <Loader2 className="animate-spin" /> : <FileDown size={20} />}
-                {isGenerating ? "GERANDO..." : "BAIXAR PDF"}
+                {isGenerating ? <Loader2 className="animate-spin" /> : <FileDown size={22} />}
+                {isGenerating ? "CRIANDO PDF..." : "BAIXAR PDF AGORA"}
               </button>
             </div>
 
-            {/* PREVIEW DO DOCUMENTO (FORMATO PAPEL) */}
-            <div id="pdf-container" className="bg-white shadow-2xl border border-slate-200 p-8 md:p-16 text-black mx-auto w-full max-w-[850px] font-serif leading-snug">
-               <div ref={reportPrintRef}>
-                  <div className="text-center border-b-4 border-black pb-4 mb-10">
-                    <h1 className="text-2xl font-black uppercase">Relatório do Ministro Presbiteriano</h1>
-                    <div className="flex justify-center gap-8 text-[10px] font-black uppercase mt-2">
-                      <span>ANO: {report.header.ano || '____'}</span>
-                      <span>SÍNODO: {report.header.sinodo || '__________'}</span>
-                      <span>PRESBITÉRIO: {report.header.presbiterio || '__________'}</span>
-                    </div>
+            {/* FOLHA DO RELATÓRIO (REF PARA PDF) */}
+            <div className="bg-white p-8 md:p-16 text-slate-900 border border-slate-200 shadow-xl mx-auto w-full max-w-[850px] font-serif leading-tight">
+               <div ref={reportRef}>
+                  <div className="text-center border-b-2 border-black pb-4 mb-10">
+                    <h1 className="text-2xl font-bold uppercase">Relatório do Ministro Presbiteriano</h1>
+                    <p className="text-[10px] font-bold uppercase mt-2">ANO: {report.header.ano} | SÍNODO: {report.header.sinodo} | PRESBITÉRIO: {report.header.presbiterio}</p>
                   </div>
-
-                  <div className="space-y-8 text-[11px]">
+                  <div className="space-y-10 text-[12px]">
                     <section>
-                      <h2 className="bg-slate-50 p-1 font-bold border-l-8 border-black mb-3 uppercase italic">I - Identificação do Ministro</h2>
-                      <div className="grid grid-cols-2 gap-x-12 gap-y-2">
-                        <p className="border-b border-slate-100 pb-1"><strong>Nome:</strong> {report.identificacao.nome}</p>
-                        <p className="border-b border-slate-100 pb-1"><strong>Filiação:</strong> {report.identificacao.filiacaoPai} e {report.identificacao.filiacaoMae}</p>
-                        <p className="border-b border-slate-100 pb-1"><strong>CPF:</strong> {report.identificacao.cpf} | <strong>RG:</strong> {report.identificacao.rg}</p>
-                        <p className="border-b border-slate-100 pb-1"><strong>Nascimento:</strong> {report.identificacao.dataNascimento} ({report.identificacao.localNascimento})</p>
-                        <p className="border-b border-slate-100 pb-1"><strong>Endereço:</strong> {report.identificacao.endereco}, {report.identificacao.numero}</p>
-                        <p className="border-b border-slate-100 pb-1"><strong>Contato:</strong> {report.identificacao.celular} | {report.identificacao.email}</p>
+                      <h2 className="bg-slate-50 p-1 font-bold border-l-4 border-black mb-4 uppercase">I - Identificação</h2>
+                      <div className="grid grid-cols-2 gap-y-2">
+                        <p><strong>Nome:</strong> {report.identificacao.nome}</p>
+                        <p><strong>CPF:</strong> {report.identificacao.cpf} | <strong>RG:</strong> {report.identificacao.rg}</p>
+                        <p><strong>Data de Nascimento:</strong> {report.identificacao.dataNascimento}</p>
+                        <p><strong>Condições de Moradia:</strong> {report.identificacao.moradia}</p>
                       </div>
                     </section>
-
                     <section>
-                      <h2 className="bg-slate-50 p-1 font-bold border-l-8 border-black mb-3 uppercase italic">II - Atuação Ministerial (Estatística)</h2>
-                      <div className="grid grid-cols-2 gap-12">
+                      <h2 className="bg-slate-50 p-1 font-bold border-l-4 border-black mb-4 uppercase">II - Atuação Ministerial</h2>
+                      <div className="grid grid-cols-2 gap-16">
                         <div>
-                          <p className="font-bold border-b-2 border-black mb-2 uppercase">1. Doutrinação</p>
+                          <p className="font-bold border-b border-black mb-2 uppercase text-[10px]">Doutrinação</p>
                           {report.atuacaoMinisterial.doutrinacao.map(i => (
-                            <div key={i.id} className="flex justify-between border-b border-slate-50 py-1 italic">
-                              <span>{i.label.substring(3)}</span> <span className="font-bold">{i.noCampo + i.foraCampo}</span>
+                            <div key={i.id} className="flex justify-between py-1 border-b border-slate-50">
+                              <span>{i.label.substring(3)}</span> <strong>{i.noCampo + i.foraCampo}</strong>
                             </div>
                           ))}
                         </div>
                         <div>
-                          <p className="font-bold border-b-2 border-black mb-2 uppercase">2. Atos Pastorais</p>
+                          <p className="font-bold border-b border-black mb-2 uppercase text-[10px]">Atos Pastorais</p>
                           {report.atuacaoMinisterial.atos.map(i => (
-                            <div key={i.id} className="flex justify-between border-b border-slate-50 py-1 italic">
-                              <span>{i.label.substring(3)}</span> <span className="font-bold">{i.noCampo + i.foraCampo}</span>
+                            <div key={i.id} className="flex justify-between py-1 border-b border-slate-50">
+                              <span>{i.label.substring(3)}</span> <strong>{i.noCampo + i.foraCampo}</strong>
                             </div>
                           ))}
                         </div>
                       </div>
                     </section>
-
-                    <section className="pt-32">
-                      <div className="flex justify-around text-center gap-20">
-                        <div className="flex-1 border-t border-black pt-2">
-                          <p className="font-bold uppercase text-[9px]">{report.outrasAtividades.local || '________________'}, {new Date().toLocaleDateString('pt-BR')}</p>
-                          <p className="text-[8px] uppercase">Local e Data</p>
-                        </div>
-                        <div className="flex-1 border-t border-black pt-2">
-                          <p className="font-bold uppercase text-[9px]">{report.identificacao.nome || '________________________________'}</p>
-                          <p className="text-[8px] uppercase">Ministro Relator</p>
-                        </div>
-                      </div>
-                    </section>
+                    <div className="pt-24 flex justify-around text-center">
+                      <div className="w-64 border-t border-black pt-2">Local e Data</div>
+                      <div className="w-64 border-t border-black pt-2">Assinatura do Ministro</div>
+                    </div>
                   </div>
                </div>
             </div>
@@ -485,29 +357,29 @@ export default function App() {
         )}
       </main>
 
-      {/* RODAPÉ MOBILE */}
-      <footer className="fixed bottom-0 inset-x-0 bg-white border-t p-4 flex justify-between items-center md:hidden no-print z-50">
-        <button disabled={tab === 0} onClick={() => setTab(t => t - 1)} className="p-4 bg-slate-50 text-indigo-600 rounded-2xl"><ChevronLeft size={24} /></button>
+      {/* FOOTER NAV */}
+      <footer className="fixed bottom-0 inset-x-0 bg-white border-t p-4 flex justify-between items-center md:hidden z-50">
+        <button disabled={tab === 0} onClick={() => setTab(t => t - 1)} className="p-4 bg-slate-100 text-indigo-600 rounded-2xl"><ChevronLeft size={24} /></button>
         <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{tab + 1} / {tabs.length}</span>
-        <button disabled={tab === tabs.length - 1} onClick={() => setTab(t => t + 1)} className="p-4 bg-slate-50 text-indigo-600 rounded-2xl"><ChevronRight size={24} /></button>
+        <button disabled={tab === tabs.length - 1} onClick={() => setTab(t => t + 1)} className="p-4 bg-slate-100 text-indigo-600 rounded-2xl"><ChevronRight size={24} /></button>
       </footer>
     </div>
   );
 }
 
-// --- SUB-COMPONENTES ---
+// --- AUXILIARES ---
 
-function AgendaBlock({ title, items, onAdd }) {
+function QuickAdd({ title, items, onAdd }) {
   return (
     <div className="bg-white p-6 rounded-[28px] shadow-sm border border-slate-100">
       <h3 className="font-black text-slate-400 text-[10px] uppercase tracking-widest mb-4 border-b pb-2">{title}</h3>
-      <div className="grid grid-cols-1 gap-2">
+      <div className="space-y-2">
         {items.map(item => (
           <button key={item.id} onClick={() => onAdd(item.id)}
-            className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 hover:bg-indigo-600 hover:text-white transition-all group active:scale-95 shadow-sm"
+            className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-50 hover:bg-indigo-600 hover:text-white transition-all active:scale-95 group"
           >
             <span className="text-xs font-bold">{item.label}</span>
-            <div className="bg-indigo-100 text-indigo-600 p-1 rounded-lg group-hover:bg-white/20 group-hover:text-white"><Plus size={16} /></div>
+            <Plus size={16} className="text-indigo-600 group-hover:text-white" />
           </button>
         ))}
       </div>
@@ -517,8 +389,8 @@ function AgendaBlock({ title, items, onAdd }) {
 
 function Section({ icon, title, children }) {
   return (
-    <div className="bg-white rounded-[32px] p-8 shadow-sm border border-slate-100">
-      <div className="flex items-center gap-3 text-indigo-600 no-print mb-6 border-b pb-2">
+    <div className="bg-white rounded-[28px] p-6 shadow-sm border border-slate-100">
+      <div className="flex items-center gap-3 text-indigo-600 mb-6 border-b pb-2">
         {icon} <h2 className="text-[10px] font-black uppercase tracking-[2px]">{title}</h2>
       </div>
       <div>{children}</div>
@@ -526,45 +398,20 @@ function Section({ icon, title, children }) {
   );
 }
 
-function InputField({ label, value, onChange, type = "text", icon }) {
-  return (
-    <div className="flex flex-col group w-full">
-      <label className="text-[8px] font-black text-slate-400 uppercase mb-1 ml-1 group-focus-within:text-indigo-600 transition-colors">{label}</label>
-      <div className="relative">
-        {icon && <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">{icon}</div>}
-        <input type={type} value={value || ''} onChange={e => onChange(e.target.value)}
-          className={`w-full bg-slate-50 border-2 border-slate-50 rounded-2xl ${icon ? 'pl-11' : 'px-4'} py-3 text-sm font-bold focus:bg-white focus:border-indigo-600 outline-none transition-all`}
-        />
-      </div>
-    </div>
-  );
-}
-
-function TextAreaField({ label, value, onChange, placeholder = "" }) {
-  return (
-    <div className="flex flex-col w-full group">
-      <label className="text-[8px] font-black text-slate-400 uppercase mb-1 ml-1 group-focus-within:text-indigo-600 transition-colors">{label}</label>
-      <textarea placeholder={placeholder} value={value || ''} onChange={e => onChange(e.target.value)}
-        className="bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-4 text-sm font-bold focus:bg-white focus:border-indigo-600 outline-none transition-all min-h-[100px]"
-      />
-    </div>
-  );
-}
-
 function StatTable({ title, icon, items, onDelta }) {
   return (
-    <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100">
-      <div className="flex items-center gap-3 text-indigo-600 mb-6 border-b pb-3">
-        {icon} <h3 className="font-black text-slate-600 text-[10px] uppercase tracking-[3px]">{title}</h3>
+    <div className="bg-white rounded-[32px] p-8 shadow-sm border border-slate-100">
+      <div className="flex items-center gap-3 text-indigo-600 mb-8 border-b pb-4">
+        {icon} <h3 className="font-black text-slate-600 text-[11px] uppercase tracking-[4px]">{title}</h3>
       </div>
       <div className="space-y-4">
-        <div className="grid grid-cols-12 gap-2 text-[8px] font-black text-slate-300 uppercase px-1 no-print">
+        <div className="grid grid-cols-12 gap-2 text-[8px] font-black text-slate-300 uppercase px-1">
           <div className="col-span-6">Descrição</div>
           <div className="col-span-3 text-center">No Campo</div>
           <div className="col-span-3 text-center">Fora</div>
         </div>
         {items.map(item => (
-          <div key={item.id} className="grid grid-cols-12 gap-2 items-center py-2 border-b last:border-0 border-slate-50">
+          <div key={item.id} className="grid grid-cols-12 gap-4 items-center py-2 border-b last:border-0 border-slate-50">
             <div className="col-span-6 text-[10px] font-bold text-slate-700 leading-tight pr-2">{item.label}</div>
             <div className="col-span-3">
               <Counter value={item.noCampo} onInc={() => onDelta(item.id, 'noCampo', 1)} onDec={() => onDelta(item.id, 'noCampo', -1)} />
@@ -581,12 +428,34 @@ function StatTable({ title, icon, items, onDelta }) {
 
 function Counter({ value, onInc, onDec }) {
   return (
-    <div className="flex items-center justify-between bg-slate-50 p-1 rounded-xl border border-slate-100 w-full h-[38px] no-print">
-      <button onClick={(e) => {e.preventDefault(); onDec();}} className="w-8 h-8 flex items-center justify-center hover:bg-white rounded-lg text-slate-300 hover:text-red-500 transition-all active:scale-75"><Minus size={12} /></button>
+    <div className="flex items-center justify-between bg-slate-50 p-1 rounded-xl border border-slate-100 w-full min-w-[70px] h-[38px]">
+      <button onClick={onDec} className="w-7 h-7 flex items-center justify-center hover:bg-white rounded-lg text-slate-300 hover:text-red-500 active:scale-75 transition-all"><Minus size={12} /></button>
       <div className="flex-1 flex items-center justify-center">
-         <span className="text-[12px] font-black text-indigo-950 leading-none h-auto w-auto flex items-center justify-center">{value || 0}</span>
+         <span className="text-[12px] font-black text-indigo-950 leading-none h-4 flex items-center justify-center">{value || 0}</span>
       </div>
-      <button onClick={(e) => {e.preventDefault(); onInc();}} className="w-8 h-8 flex items-center justify-center hover:bg-white rounded-lg text-slate-300 hover:text-indigo-600 transition-all active:scale-75"><Plus size={12} /></button>
+      <button onClick={onInc} className="w-7 h-7 flex items-center justify-center hover:bg-white rounded-lg text-slate-300 hover:text-indigo-600 active:scale-75 transition-all"><Plus size={12} /></button>
+    </div>
+  );
+}
+
+function InputField({ label, value, onChange, type = "text" }) {
+  return (
+    <div className="flex flex-col group w-full">
+      <label className="text-[8px] font-black text-slate-400 uppercase mb-1 ml-1 group-focus-within:text-indigo-600 transition-colors">{label}</label>
+      <input type={type} value={value || ''} onChange={e => onChange(e.target.value)}
+        className="bg-slate-50 border-2 border-slate-50 rounded-xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-indigo-600 outline-none transition-all"
+      />
+    </div>
+  );
+}
+
+function TextAreaField({ label, value, onChange }) {
+  return (
+    <div className="flex flex-col w-full group">
+      <label className="text-[8px] font-black text-slate-400 uppercase mb-1 ml-1 group-focus-within:text-indigo-600 transition-colors">{label}</label>
+      <textarea value={value || ''} onChange={e => onChange(e.target.value)}
+        className="bg-slate-50 border-2 border-slate-50 rounded-xl px-4 py-3 text-sm font-bold focus:bg-white focus:border-indigo-600 outline-none transition-all min-h-[80px]"
+      />
     </div>
   );
 }
